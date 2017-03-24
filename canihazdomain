@@ -17,7 +17,7 @@ fi
 
 DOMAINS=( )
 icann_top_level_domains_list() {
-    local TLDS_LIST="$HOME/tmp/tlds-alpha-by-domain.txt"
+    local TLDS_LIST="/tmp/tlds-alpha-by-domain.txt"
     echo -e "\e[2mFetching ICANN Top-Level Domains list...\e[0m";
     curl -sL \
 	 --url "http://data.iana.org/TLD/tlds-alpha-by-domain.txt" \
