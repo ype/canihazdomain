@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+# Name: Check for domain name availability
+# Author: ype
+# Source: https://github.com/ype/canihazdomain
+# Based On: linuxconfig.org
+
+# Usage:
+#   canihazdomain domain_name
+
+INPUT="$@"
+
+if [ "$INPUT" == "0" ]; then
+    echo "You need tu supply at least one argument!"
+    exit 1
+fi
+
+DOMAINS=( )
+icann_top_level_domains_list() {
+    local TLDS_LIST="$HOME/tmp/tlds-alpha-by-domain.txt"
+    echo -e "\e[2mFetching ICANN Top-Level Domains list...\e[0m";
+    curl -sL \
+	 --url "http://data.iana.org/TLD/tlds-alpha-by-domain.txt" \
+	| sed 1d \
+	| tr '[[:upper:]]' '[[:lower:]]' > "$TLDS_LIST"
+    while read TLD; do
+	DOMAINS+=( $(echo ".$TLD") );
+    done <"$TLDS_LIST"
+}
+
+check_domains() {
+    local WHOIS_RESULTS_DIR="$HOME/tmp/canihazdomain/whois_results"
+    mkdir -p "$WHOIS_RESULTS_DIR"
+    ELEMENTS=${#DOMAINS[@]};
+    while (( "$#" )); do
+	for (( i=${ELEMENTS}; i != 0; --i)); do
+	    whois $1${DOMAINS[${i}]} > "$WHOIS_RESULTS_DIR/$1${DOMAINS[${i}]}.whois.txt"
+	    # | egrep -q '^No match|^NOT FOUND|^Not fo|AVAILABLE|^No Data Fou|has not been regi|No entri|connect: Connection refused'
+	    local GET_WHOIS_RESULTS="$WHOIS_RESULTS_DIR/$1${DOMAINS[${i}]}.whois.txt"
+	    local EXPIRATION_DATE="$(cat $GET_WHOIS_RESULTS | egrep 'Expir.*' | head -n1 | cut -d':' -f2)"
+	    if [ -z "$EXPIRATION_DATE" ]; then
+		printf "%s\e[1m\e[32m%-15s\e[0m\e[0m<<<<<<>>>>>>%30s\e[0m\n" \
+		       "$1" \
+		       "${DOMAINS[${i}]}" \
+		       "available"
+	    else
+		printf "%s\e[1m\e[38;5;198m%-15s\e[0m\e[0m<<<<<<>>>>>>\e[38;5;198m%30s\e[0m\n" \
+		       "$1" \
+		       "${DOMAINS[${i}]}" \
+		       "$EXPIRATION_DATE, unavailable"
+	    fi
+	done
+	shift
+    done
+}
+
+
+main() {
+    icann_top_level_domains_list
+    sleep 2
+    check_domains "$INPUT"
+}
+
+main
